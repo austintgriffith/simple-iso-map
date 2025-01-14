@@ -1,70 +1,125 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import type { NextPage } from "next";
-import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { Address } from "~~/components/scaffold-eth";
+
+// Define types
+type TileType = "dirt.png" | "grass.png" | "grass2.png" | "forest.png";
+type GridType = TileType[][];
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
+  // === Adjustable Constants ===
+  const TILE_SIZE = 256; // Base tile size
+  const TILE_SCALE = 1; // Zoom level
+
+  // === Fine-Tuning Between Tiles ===
+  const TILE_HORIZONTAL_ADJUST = -15; // Base horizontal spacing
+  const TILE_VERTICAL_ADJUST = 12; // Base vertical spacing
+
+  // === Progressive Drift Correction ===
+  const HORIZONTAL_DRIFT_CORRECTION = 7; // Corrects horizontal drift
+  const VERTICAL_DRIFT_CORRECTION = 2; // (Optional) Corrects vertical drift if needed
+
+  // === Map Position Offset ===
+  const OFFSET_X = -100; // Shifts the entire map left/right
+  const OFFSET_Y = -800; // Shifts the entire map up/down
+
+  // Computed tile size
+  const TILE_WIDTH = TILE_SIZE * TILE_SCALE;
+  const TILE_HEIGHT = TILE_WIDTH / 2;
+
+  // Define possible tiles
+  const tiles: TileType[] = ["dirt.png", "grass.png", "grass2.png", "forest.png"];
+  const [grid, setGrid] = useState<GridType>([]);
+
+  // Generate a 10x10 grid of random tiles
+  const generateRandomGrid = (): GridType => {
+    const newGrid: GridType = [];
+
+    for (let i = 0; i < 10; i++) {
+      const row: TileType[] = [];
+      for (let j = 0; j < 10; j++) {
+        const randomTile = tiles[Math.floor(Math.random() * tiles.length)];
+        row.push(randomTile);
+      }
+      newGrid.push(row);
+    }
+
+    return newGrid;
+  };
+
+  // Generate grid on component mount
+  useEffect(() => {
+    const randomGrid = generateRandomGrid();
+    setGrid(randomGrid);
+  }, []);
 
   return (
     <>
-      <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col sm:flex-row">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} />
-          </div>
-
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              YourContract.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
-        </div>
-
-        <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-          </div>
+      <div className="main-container">
+        <div className="grid-container">
+          {grid.map((row, rowIndex) =>
+            row.map((tile, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className="tile"
+                style={{
+                  left: `${
+                    (colIndex - rowIndex) * (TILE_WIDTH / 2 + TILE_HORIZONTAL_ADJUST) +
+                    colIndex * HORIZONTAL_DRIFT_CORRECTION +
+                    OFFSET_X
+                  }px`,
+                  top: `${
+                    (colIndex + rowIndex) * (TILE_HEIGHT / 2 + TILE_VERTICAL_ADJUST) +
+                    rowIndex * VERTICAL_DRIFT_CORRECTION +
+                    OFFSET_Y
+                  }px`,
+                }}
+              >
+                <Image
+                  src={`/tiles/${tile}`}
+                  alt={tile}
+                  width={TILE_WIDTH}
+                  height={TILE_HEIGHT}
+                  className="tile-image"
+                />
+              </div>
+            )),
+          )}
         </div>
       </div>
+
+      <style jsx>{`
+        /* Full-screen centered container */
+        .main-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          width: 100vw;
+          overflow: hidden;
+          position: relative;
+        }
+
+        /* Grid container */
+        .grid-container {
+          position: relative;
+        }
+
+        /* Tile positioning */
+        .tile {
+          position: absolute;
+          width: ${TILE_WIDTH}px;
+          height: ${TILE_HEIGHT}px;
+        }
+
+        .tile-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      `}</style>
     </>
   );
 };
