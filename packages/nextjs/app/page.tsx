@@ -6,7 +6,11 @@ import type { NextPage } from "next";
 
 // Define types
 type TileType = "dirt.png" | "grass.png" | "grass2.png" | "forest.png";
-type GridType = TileType[][];
+type TileData = {
+  type: TileType;
+  rizz: number;
+};
+type GridType = TileData[][];
 
 const Home: NextPage = () => {
   // === Adjustable Constants ===
@@ -33,15 +37,18 @@ const Home: NextPage = () => {
   const tiles: TileType[] = ["dirt.png", "grass.png", "grass2.png", "forest.png"];
   const [grid, setGrid] = useState<GridType>([]);
 
-  // Generate a 10x10 grid of random tiles
+  // Generate a 10x10 grid of random tiles with rizz
   const generateRandomGrid = (): GridType => {
     const newGrid: GridType = [];
 
     for (let i = 0; i < 10; i++) {
-      const row: TileType[] = [];
+      const row: TileData[] = [];
       for (let j = 0; j < 10; j++) {
         const randomTile = tiles[Math.floor(Math.random() * tiles.length)];
-        row.push(randomTile);
+        row.push({
+          type: randomTile,
+          rizz: 0,
+        });
       }
       newGrid.push(row);
     }
@@ -49,7 +56,39 @@ const Home: NextPage = () => {
     return newGrid;
   };
 
-  // Generate grid on component mount
+  // Update these wave constants
+  const WAVE_SPEED = 0.4; // Reduced further for smoother movement
+  const WAVE_AMPLITUDE = 4;
+  const WAVE_FREQUENCY = 0.2;
+  const DIAGONAL_FACTOR = 0.3;
+
+  // Add time state for the animation
+  const [time, setTime] = useState(0);
+
+  // Update the wave animation effect with less frequent updates
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setTime(prevTime => prevTime + 1);
+
+      setGrid(currentGrid => {
+        return currentGrid.map((row, i) =>
+          row.map((tile, j) => {
+            const waveOffset =
+              Math.sin(time * WAVE_SPEED + (i + j) * WAVE_FREQUENCY + (i - j) * DIAGONAL_FACTOR) * WAVE_AMPLITUDE;
+
+            return {
+              ...tile,
+              rizz: waveOffset,
+            };
+          }),
+        );
+      });
+    }, 100); // Increased to 100ms - less frequent updates
+
+    return () => clearInterval(intervalId);
+  }, [time]);
+
+  // Generate initial grid
   useEffect(() => {
     const randomGrid = generateRandomGrid();
     setGrid(randomGrid);
@@ -73,13 +112,15 @@ const Home: NextPage = () => {
                   top: `${
                     (colIndex + rowIndex) * (TILE_HEIGHT / 2 + TILE_VERTICAL_ADJUST) +
                     rowIndex * VERTICAL_DRIFT_CORRECTION +
-                    OFFSET_Y
+                    OFFSET_Y +
+                    tile.rizz * 5
                   }px`,
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", // Smooth easing function
                 }}
               >
                 <Image
-                  src={`/tiles/${tile}`}
-                  alt={tile}
+                  src={`/tiles/${tile.type}`}
+                  alt={tile.type}
                   width={TILE_WIDTH}
                   height={TILE_HEIGHT}
                   className="tile-image"
@@ -91,7 +132,6 @@ const Home: NextPage = () => {
       </div>
 
       <style jsx>{`
-        /* Full-screen centered container */
         .main-container {
           display: flex;
           justify-content: center;
@@ -102,16 +142,16 @@ const Home: NextPage = () => {
           position: relative;
         }
 
-        /* Grid container */
         .grid-container {
           position: relative;
+          will-change: transform; /* Optimize for animations */
         }
 
-        /* Tile positioning */
         .tile {
           position: absolute;
           width: ${TILE_WIDTH}px;
           height: ${TILE_HEIGHT}px;
+          will-change: transform; /* Optimize for animations */
         }
 
         .tile-image {
