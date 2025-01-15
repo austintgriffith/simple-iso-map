@@ -10,19 +10,19 @@ type GridType = TileType[][];
 
 const Home: NextPage = () => {
   // === Adjustable Constants ===
-  const TILE_SIZE = 512; // Base tile size
+  const TILE_SIZE = 256; // Base tile size
   const TILE_SCALE = 1; // Zoom level
 
   // === Fine-Tuning Between Tiles ===
-  const TILE_HORIZONTAL_ADJUST = -30; // Base horizontal spacing
-  const TILE_VERTICAL_ADJUST = 25; // Base vertical spacing
+  const TILE_HORIZONTAL_ADJUST = -15; // Base horizontal spacing
+  const TILE_VERTICAL_ADJUST = 12; // Base vertical spacing
 
   // === Progressive Drift Correction ===
-  const HORIZONTAL_DRIFT_CORRECTION = 10; // Corrects horizontal drift
-  const VERTICAL_DRIFT_CORRECTION = 2; // (Optional) Corrects vertical drift if needed
+  const HORIZONTAL_DRIFT_CORRECTION = 5; // Corrects horizontal drift
+  const VERTICAL_DRIFT_CORRECTION = 1; // (Optional) Corrects vertical drift if needed
 
   // === Map Position Offset ===
-  const [mapOffset, setMapOffset] = useState({ x: -300, y: -1200 }); // Replace static OFFSET_X/Y with state
+  const [mapOffset, setMapOffset] = useState({ x: -300, y: -800 }); // Replace static OFFSET_X/Y with state
 
   // Computed tile size
   const TILE_WIDTH = TILE_SIZE * TILE_SCALE;
@@ -36,6 +36,9 @@ const Home: NextPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
+
+  // Add touch-specific state
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
 
   // Generate a grid of all forest tiles
   const generateInitialGrid = (): GridType => {
@@ -111,6 +114,31 @@ const Home: NextPage = () => {
     setIsDragging(false);
   };
 
+  // Add these touch event handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent default scrolling
+    setIsDragging(true);
+    setHasMoved(false);
+    setTouchStart({
+      x: e.touches[0].clientX - mapOffset.x,
+      y: e.touches[0].clientY - mapOffset.y,
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent default scrolling
+    if (!isDragging) return;
+
+    setHasMoved(true);
+    const newX = e.touches[0].clientX - touchStart.x;
+    const newY = e.touches[0].clientY - touchStart.y;
+    setMapOffset({ x: newX, y: newY });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   // Generate grid on component mount
   useEffect(() => {
     const initialGrid = generateInitialGrid();
@@ -127,6 +155,9 @@ const Home: NextPage = () => {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {grid.map((row, rowIndex) =>
             row.map((tile, colIndex) => (
@@ -170,12 +201,14 @@ const Home: NextPage = () => {
           width: 100vw;
           overflow: hidden;
           position: relative;
+          touch-action: none; /* Disable browser handling of touch gestures */
         }
 
         /* Grid container */
         .grid-container {
           position: relative;
           user-select: none; /* Prevent text selection while dragging */
+          touch-action: none; /* Disable browser handling of touch gestures */
         }
 
         /* Tile positioning */
